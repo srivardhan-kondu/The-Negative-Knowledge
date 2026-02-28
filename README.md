@@ -6,7 +6,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Demo](https://img.shields.io/badge/Demo-Live-brightgreen.svg)](data/graph_credible_ai.html)
-[![ROC-AUC](https://img.shields.io/badge/ROC--AUC-99.76%25-success.svg)]()
+[![ROC-AUC](https://img.shields.io/badge/Test_ROC--AUC-74.1%25-success.svg)]()
 
 <p align="center">
   <img src="assets/demo.webp" alt="3D Interactive Visualization" width="800"/>
@@ -16,7 +16,7 @@
 
 ## 🎯 **What is Negative Knowledge?**
 
-**Negative Knowledge** represents the *unknown unknowns* in scientific research — **connections that should exist but haven't been studied yet**. This project uses cutting-edge AI to discover these hidden research opportunities in mental health science.
+**Negative Knowledge** represents the *unknown unknowns* in scientific research — **connections that should exist but haven't been studied yet**. This project uses cutting-edge AI to discover these hidden research opportunities in medical science.
 
 ### The Problem
 - 📚 Millions of research papers published annually
@@ -25,37 +25,36 @@
 - 💡 Valuable connections between concepts are missed
 
 ### Our Solution
-Using **Graph Neural Networks (GNNs)** and **knowledge graph analysis**, we predict which research connections are missing from the literature with **99.76% accuracy**.
+Using **Graph Neural Networks (GNNs)** combined with **deep biomedical language models (SciBERT)**, we construct vast knowledge graphs from raw research papers and algorithmically predict which research connections are missing with a robust **74.1% true unseen test accuracy**.
 
 ---
 
-## ✨ **Key Features**
+## ✨ **Major System Upgrades & Features**
 
-### 🤖 **Multi-Source Data Collection**
-- **Semantic Scholar**: 506 papers
-- **arXiv**: 147 papers  
-- **Total**: 653+ mental health research papers
+This project has been massively scaled and re-engineered to prevent AI "hallucinations" and provide scientifically rigorous, proven predictions.
 
-### 🧠 **Advanced AI Pipeline**
-- **NLP Entity Extraction**: scispaCy biomedical models
-- **Knowledge Graph**: 659 concepts, 2,428 connections
-- **Node2Vec Embeddings**: 64-dimensional representations
-- **Graph Convolutional Network**: 99.76% ROC-AUC accuracy
+### 🤖 **Massive Multi-Source Data Collection**
+- **Semantic Scholar & PubMed APIs**: Built a high-throughput fetcher (`fetch_papers_large.py`).
+- **Scale**: Expanded from 500+ papers to over **872 mental health research papers** by rapidly querying 20 distinct psychiatric search terms.
 
-### 📊 **Interactive 3D Visualization**
-- Real-time graph rotation and zoom
-- Professional dark theme with blue/cyan gradients  
+### 🧠 **Advanced Hybrid AI Pipeline**
+- **Entity Extraction**: `scispaCy` extracted over **46,000 raw medical concepts**, which were heavily deduplicated down to the **659 most critical core nodes** connected by **4,856 verified edges**.
+- **896-Dimensional Hybrid Intelligence**: 
+  - Nodes no longer just know *where* they are in the graph (`128D Node2Vec`).
+  - Nodes now understand exactly *what they mean medically* by reading the `768D SciBERT` transformer embeddings.
+
+### 🧬 **State-of-the-Art Neural Architecture**
+- **Compression Encoder**: A 2-Layer GCN running dimensionality reduction (896D → 64D) fortified with **BatchNorm** and **45% Dropout** to heavily penalize overfitting.
+- **Bilinear Hybrid Decoder**: Replaced basic dot-product scoring with a learned **Bilinear Matrix ($W$) + 3-Layer MLP neural network**. The model learns complex asymmetrical scoring functions to judge connection probability.
+- **Multi-Seed Training**: The training loop runs 3 entirely separate initializations and only keeps the model that discovers the deepest mathematical optimum. 
+
+### 📊 **Explainable 3D Dashboard**
+- Real-time Plotly 3D graph rotation and zoom
 - AI transparency panels showing:
-  - Model performance metrics
-  - Complete architecture details
-  - Top 20 research gap predictions
-  - Methodology explanation
-
-### 🔐 **Full AI Transparency**
-- Complete model architecture disclosed
-- Training parameters visible
-- Data sources clearly displayed
-- Appropriate research disclaimers
+  - Strict Test and Validation performance metrics
+  - Complete Neural architecture details
+  - Top AI research gap predictions (with actual Probability Scores)
+  - Full end-to-end Methodology explanation
 
 ---
 
@@ -89,90 +88,70 @@ python -m spacy download en_core_sci_sm
 python -m spacy download en_ner_bc5cdr_md
 ```
 
-4. **Run the demo**
+4. **Launch the Dashboard**
 ```bash
-./demo.sh
+streamlit run scripts/visualize_credible_ai.py
 ```
 
-Your browser will open showing the interactive 3D visualization!
+Your browser will open showing the interactive 3D visualization and dashboard!
 
 ---
 
 ## 📖 **How It Works**
 
-### 5-Step AI Pipeline
+### End-to-End Pipeline
 
 ```
 ┌─────────────────┐
-│ 1. Data Fetch   │  ──▶  Collect papers from Semantic Scholar, arXiv
+│ 1. Data Fetch   │  ──▶  fetch_papers_large.py (872 papers)
 └─────────────────┘
          │
          ▼
 ┌─────────────────┐
-│ 2. NLP Extract  │  ──▶  Extract concepts using scispaCy
+│ 2. NLP Extract  │  ──▶  extract_entities.py (46,000 concepts via scispaCy)
 └─────────────────┘
          │
          ▼
 ┌─────────────────┐
-│ 3. Graph Build  │  ──▶  Create knowledge graph (NetworkX)
+│ 3. Graph Build  │  ──▶  build_pyg_graph.py (Node2Vec + SciBERT embeddings)
 └─────────────────┘
          │
          ▼
 ┌─────────────────┐
-│ 4. GNN Training │  ──▶  Train Graph Convolutional Network
+│ 4. GNN Training │  ──▶  train_gnn.py (GCN Encoder + Bilinear MLP Decoder)
 └─────────────────┘
          │
          ▼
 ┌─────────────────┐
-│ 5. Gap Discovery│  ──▶  Predict missing research connections
+│ 5. Transparent UI│  ──▶  visualize_credible_ai.py (3D Interactive UI)
 └─────────────────┘
 ```
-
-### Architecture Details
-
-**Model**: Graph Convolutional Network (GCN)
-- **Input**: 64D Node2Vec embeddings
-- **Layer 1**: GCNConv(64, 64) + ReLU
-- **Layer 2**: GCNConv(64, 32)
-- **Decoder**: Dot product (link prediction)
-- **Training**: 200 epochs, Adam optimizer (lr=0.01)
-- **Loss**: Binary Cross-Entropy
 
 ---
 
 ## 📊 **Results**
 
 ### Model Performance
+
+Unlike prototype models that overfit on their own training data to claim "99%" accuracy, this framework enforces a strict **80/10/10 Train/Validation/Test split**. 
+
+The model must predict completely hidden, surgically removed associations.
+
 | Metric | Value |
 |--------|-------|
-| **ROC-AUC** | 99.76% |
-| **Accuracy** | State-of-the-art |
-| **Training Time** | ~3 minutes |
+| **Validation ROC-AUC** | 76.8% |
+| **Strict Test ROC-AUC** | **74.1%** |
+| **Prediction Meaning** | Given a real missing medical link and a completely false link, the AI correctly identifies the real one ~74% of the time. |
 
 ### Top 5 Discovered Research Gaps
 
-1. **Treatment completion ↔ PTSD** (99.8% confidence)
-2. **Anxiety disorders ↔ Post-treatment** (99.7%)
-3. **Anxiety disorders ↔ Sleep initiation** (99.4%)
-4. **Traumatic stress ↔ PTSD** (99.2%)
-5. **Behavioral therapy ↔ Stress** (99.1%)
+1. **Trauma-focused CBT ↔ Depression** (82.9% confidence)
+2. **Loneliness ↔ Beck Anxiety Inventory** (82.6%)
+3. **Advanced Treatments ↔ Bipolar Disorder** (81.6%)
+4. **Monotherapy ↔ Anxiety** (81.4%)
+5. **Depression ↔ Quality of Sleep** (80.5%)
 
-> These predictions suggest under-researched connections worth investigating!
-
----
-
-## 🎨 **Visualization Demo**
-
-<p align="center">
-  <img src="assets/demo.webp" alt="3D Demo" width="600"/>
-</p>
-
-**Interactive Features:**
-- 🔄 Rotate the 3D graph
-- 🔍 Zoom in/out
-- 👆 Hover for node details
-- 📊 View transparency panels
-- 🎯 See top 20 predictions
+> These predictions represent highly probable but under-researched connections strongly suggested by the geometry of the existing literature.
 
 ---
 
@@ -181,23 +160,22 @@ Your browser will open showing the interactive 3D visualization!
 ```
 The-Negative-Knowledge/
 ├── scripts/              # All pipeline scripts
-│   ├── fetch_papers.py           # Multi-source data collection
+│   ├── fetch_papers_large.py     # High-throughput data collection
 │   ├── extract_entities.py       # NLP entity extraction
 │   ├── classify_entities.py      # Category classification
 │   ├── extract_relations.py      # Relation extraction
 │   ├── build_graph.py            # Knowledge graph construction
-│   ├── train_node2vec.py         # Embedding training
-│   ├── build_pyg_graph.py        # PyTorch Geometric graph
-│   ├── train_gnn.py              # GNN model training
-│   └── visualize_credible_ai.py  # 3D visualization
+│   ├── train_node2vec.py         # 128D Topology training
+│   ├── train_semantic_embeddings.py # 768D SciBERT training
+│   ├── build_pyg_graph.py        # 896D Feature Concatenation
+│   ├── train_gnn.py              # Bilinear Decoder model training
+│   └── visualize_credible_ai.py  # 3D visualization dashboard
 ├── data/                 # Data files (gitignored)
 │   ├── mindgap.db               # SQLite database
-│   ├── mental_health_graph.pkl  # NetworkX graph
-│   ├── gnn_model.pt             # Trained GNN
-│   └── graph_credible_ai.html   # Final visualization
-├── config.yaml           # Domain configuration (multi-domain support)
-├── domain_config.py      # Configuration manager
-├── demo.sh              # One-click demo script
+│   ├── pyg_graph_splits.pt      # Train/Val/Test PyTorch splits
+│   ├── gnn_model.pt             # Trained GCN + Decoder Dict
+│   └── graph_credible_ai.html   # Final visualization UI output
+├── config.yaml           # Domain configuration
 ├── requirements.txt     # Python dependencies
 └── README.md           # This file
 ```
@@ -218,113 +196,38 @@ domains:
   cancer: ...
 ```
 
-**Switch domains easily:**
-```bash
-python run_pipeline.py --domain diabetes
-```
-
-### Customization
-
-Edit `scripts/visualize_credible_ai.py` to customize:
-- Node colors and sizes (Line 105-120)
-- Camera zoom (Line 220)
-- Panel positions (Line 430-460)
-- Background colors (Line 197)
-
----
-
-## 📈 **Pipeline Commands**
-
-### Full Pipeline (from scratch)
-```bash
-source venv/bin/activate
-
-# Step 1-9: Complete pipeline
-python scripts/fetch_papers.py
-python scripts/extract_entities.py
-python scripts/classify_entities.py
-python scripts/extract_relations.py
-python scripts/build_graph.py
-python scripts/train_node2vec.py
-python scripts/build_pyg_graph.py
-python scripts/train_gnn.py
-python scripts/visualize_credible_ai.py
-
-# Open result
-open data/graph_credible_ai.html
-```
-
-### Quick Regeneration
-```bash
-./demo.sh
-```
-
 ---
 
 ## 🎓 **Tech Stack**
 
 ### AI/ML
-- **PyTorch** + **PyTorch Geometric** - Deep learning
-- **scikit-learn** - ML utilities
-- **Node2Vec** - Graph embeddings
-- **NetworkX** - Graph manipulation
+- **PyTorch** + **PyTorch Geometric** - Deep learning, Data Splitting
+- **Transformers (HuggingFace)** - `SciBERT` embeddings
+- **Node2Vec** - DeepWalk graph topology embeddings
+- **NetworkX** - Complex graph manipulation
 
 ### NLP
-- **spaCy** - NLP pipeline
-- **scispaCy** - Biomedical NER
-- **en_core_sci_sm** - Scientific corpus
-- **en_ner_bc5cdr_md** - Biomedical entities
+- **spaCy** - Core NLP pipeline
+- **scispaCy** - Highly specialized Biomedical NER
+- **en_core_sci_sm** - Broad Scientific corpus
+- **en_ner_bc5cdr_md** - Disease/Chemical corpus
 
-### Data & Visualization
-- **SQLite** - Local database
-- **Plotly** - Interactive 3D graphs
-- **Requests** - API calls
-- **TQDM** - Progress bars
-
----
-
-## 📝 **Research Applications**
-
-This tool can help researchers:
-- 🔍 **Discover** novel research directions
-- 🧩 **Identify** missing connections in literature
-- 📊 **Prioritize** investigation topics
-- 🌐 **Visualize** knowledge landscapes
-- 🤝 **Collaborate** across domains
-
-**Domains Supported:**
-- Mental Health (default)
-- Diabetes
-- Cancer
-- Custom domains (via config.yaml)
+### Data & UI
+- **SQLite** - High-speed Local DB
+- **Plotly** - WebGL 3D Network graphs
+- **Streamlit** - Python UI Framework
 
 ---
 
 ## 🤝 **Contributing**
 
-Contributions are welcome! Here's how:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Please open an issue or submit a Pull Request.
 
 ---
 
 ## 📄 **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 **Acknowledgments**
-
-- **Semantic Scholar** - Research paper API
-- **arXiv** - Open access preprints
-- **PyTorch Geometric** - GNN framework
-- **scispaCy** - Biomedical NLP
-- **Mental Health Research Community** - Domain expertise
 
 ---
 
@@ -336,31 +239,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 🎯 **Citation**
-
-If you use this project in your research, please cite:
-
-```bibtex
-@software{kondu2025negative,
-  title={The Negative Knowledge: AI-Powered Research Gap Discovery},
-  author={Kondu, Srivardhan},
-  year={2025},
-  url={https://github.com/srivardhan-kondu/The-Negative-Knowledge}
-}
-```
-
----
-
 <p align="center">
   <strong>Built with ❤️ for advancing scientific research</strong>
   <br>
-  <sub>99.76% accurate • Fully transparent • Open source</sub>
+  <sub>Strict Evaluation • Fully Transparent • Open Source</sub>
 </p>
-
----
-
-## 🌟 **Star History**
-
-If you find this project useful, please give it a ⭐️!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=srivardhan-kondu/The-Negative-Knowledge&type=Date)](https://star-history.com/#srivardhan-kondu/The-Negative-Knowledge&Date)
