@@ -1,0 +1,22 @@
+# Virtual environment
+venv/
+env/
+.env
+
+# Python compilation files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large data and models
+data/
+*.db
+*.pkl
+*.pt
+*.wv
+*.html
+
+# IDE configuration
+.vscode/
+.idea/
+.DS_Store
