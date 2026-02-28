@@ -235,6 +235,59 @@ def nx_density(G):
     return nx.density(G)
 
 
+@app.route("/api/graph_data")
+def graph_data():
+    """Return complete 3D graph layout (nodes, edges, positions, colors)."""
+    G = _ctx["G"]
+    nodes = _ctx["nodes"]
+    
+    import networkx as nx
+    
+    # Check if we already cached the 3D layout to save computation
+    if "pos_3d" not in _ctx:
+        # Match original script strictly: spring_layout(dim=3, k=2.0, iterations=200, seed=42)
+        _ctx["pos_3d"] = nx.spring_layout(G, dim=3, k=2.0, iterations=200, seed=42)
+        
+    pos_3d = _ctx["pos_3d"]
+    node_degrees = dict(G.degree())
+    max_degree = max(node_degrees.values()) if node_degrees else 1
+
+    nodes_data = []
+    node_idx = {}
+    
+    for i, n in enumerate(nodes):
+        node_idx[n] = i
+        degree = node_degrees[n]
+        # INCREASED SIZE: 15-45 (was 8-28) from original script
+        size = 15 + (degree / max_degree) * 30
+        
+        # Professional gradient: dark blue to bright cyan
+        intensity = degree / max_degree
+        r = int(40 + intensity * 70)   # 40-110
+        g = int(150 + intensity * 105) # 150-255
+        b = int(200 + intensity * 55)  # 200-255
+        opacity = 0.85 + (degree / max_degree) * 0.15
+        
+        nodes_data.append({
+            "id": n,
+            "x": pos_3d[n][0],
+            "y": pos_3d[n][1],
+            "z": pos_3d[n][2],
+            "size": size,
+            "color": f"rgba({r}, {g}, {b}, {opacity})",
+            "degree": degree
+        })
+
+    edges_data = []
+    for u, v in G.edges():
+        edges_data.append([node_idx[u], node_idx[v]])
+
+    return jsonify({
+        "nodes": nodes_data,
+        "edges": edges_data
+    })
+
+
 @app.route("/api/predictions")
 def predictions():
     """Return top-20 globally predicted missing links."""

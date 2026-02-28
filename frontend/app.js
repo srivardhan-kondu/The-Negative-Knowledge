@@ -81,11 +81,11 @@ async function loadMetrics() {
 
     // Graph stats
     const statsRows = [
-      ["Nodes (Concepts)",   data.graph.nodes.toLocaleString()],
+      ["Nodes (Concepts)", data.graph.nodes.toLocaleString()],
       ["Edges (Known Links)", data.graph.edges.toLocaleString()],
-      ["Total Papers",        data.dataset.total_papers.toLocaleString()],
-      ["Graph Density",       data.graph.density],
-      ["Avg Degree",          data.graph.avg_degree],
+      ["Total Papers", data.dataset.total_papers.toLocaleString()],
+      ["Graph Density", data.graph.density],
+      ["Avg Degree", data.graph.avg_degree],
     ];
     document.getElementById("graph-stats-list").innerHTML =
       statsRows.map(([k, v]) =>
@@ -95,12 +95,12 @@ async function loadMetrics() {
     // Architecture detail
     const arch = data.architecture;
     const archRows = [
-      ["Encoder",   arch.encoder],
-      ["Decoder",   arch.decoder],
+      ["Encoder", arch.encoder],
+      ["Decoder", arch.decoder],
       ["Input Dim", arch.input_dim],
-      ["Hidden",    arch.hidden_dim],
+      ["Hidden", arch.hidden_dim],
       ["Embed Dim", arch.embedding_dim],
-      ["Dropout",   arch.dropout],
+      ["Dropout", arch.dropout],
       ["Optimizer", arch.optimizer + ` · lr=${arch.lr}`],
       ["Max Epochs", arch.max_epochs],
       ["Early Stop", `patience ${arch.early_stop_patience}`],
@@ -115,8 +115,8 @@ async function loadMetrics() {
 
     // Pie chart
     const sources = Object.keys(data.dataset.sources);
-    const counts  = Object.values(data.dataset.sources);
-    const palette = ["#60d0ff","#4ade80","#ff6b9d","#b794f6","#ffd700"];
+    const counts = Object.values(data.dataset.sources);
+    const palette = ["#60d0ff", "#4ade80", "#ff6b9d", "#b794f6", "#ffd700"];
     Plotly.newPlot("pie-chart", [{
       type: "pie",
       labels: sources,
@@ -165,49 +165,43 @@ async function loadGlobalPredictions() {
 /* ══════════════ 3D Graph ══════════════ */
 async function loadGraph() {
   const container = document.getElementById("graph-container");
-  const loading   = document.getElementById("graph-loading");
+  const loading = document.getElementById("graph-loading");
 
-  // Fetch predictions first (we need them to draw red edges)
-  const preds = await loadGlobalPredictions();
-
-  // Fetch nodes via health endpoint to get list
-  // We'll build the graph from the predictions + metrics data already loaded
-  // Use a simple fetch for the graph data
   try {
-    // Get full node list from search with wildcard (hack: search empty returns error, use metrics)
-    // Instead, just use the predictions nodes for the 3D graph highlights
-    // For the full graph, we build a virtual graph from top predictions neighbors
+    // 1. Fetch top predictions (for red edges)
+    const predsPromise = loadGlobalPredictions();
+    // 2. Fetch full graph layout
+    const graphPromise = apiFetch("/api/graph_data");
 
-    // Draw a focused graph: just the nodes involved in top predictions
-    const nodeSet = new Set();
-    const edges = [];
-    preds.forEach(p => {
-      nodeSet.add(p.node_a);
-      nodeSet.add(p.node_b);
-      edges.push({ a: p.node_a, b: p.node_b, score: p.score });
-    });
+    const [preds, graphData] = await Promise.all([predsPromise, graphPromise]);
 
-    const nodes = Array.from(nodeSet);
-    const n = nodes.length;
-    const idx = Object.fromEntries(nodes.map((nd, i) => [nd, i]));
+    const { nodes, edges } = graphData;
 
-    // Random 3D positions (reproducible seed via simple LCG)
-    const pos = nodes.map((_, i) => {
-      const t = (i * 2.399963) % (2 * Math.PI);  // golden angle
-      const z = 1 - (i / (n - 1)) * 2;
-      const r = Math.sqrt(1 - z * z);
-      return { x: r * Math.cos(t), y: r * Math.sin(t), z };
-    });
+    // Build Plotly Traces
 
-    const palette = ["#60d0ff","#4ade80","#b794f6","#ffd700","#ff6b9d"];
-
-    // Predicted edges (red)
+    // 1. Existing Known Edges (faint white/gray)
     const ex = [], ey = [], ez = [];
-    edges.forEach(e => {
-      const ai = idx[e.a], bi = idx[e.b];
-      ex.push(pos[ai].x, pos[bi].x, null);
-      ey.push(pos[ai].y, pos[bi].y, null);
-      ez.push(pos[ai].z, pos[bi].z, null);
+    edges.forEach(([uIdx, vIdx]) => {
+      const u = nodes[uIdx], v = nodes[vIdx];
+      ex.push(u.x, v.x, null);
+      ey.push(u.y, v.y, null);
+      ez.push(u.z, v.z, null);
+    });
+
+    // 2. AI Predicted Gaps (bright red)
+    const px = [], py = [], pz = [];
+    // node id -> index map for quick lookup
+    const nodeIdxMap = Object.fromEntries(nodes.map((n, i) => [n.id, i]));
+
+    preds.forEach(p => {
+      const uIdx = nodeIdxMap[p.node_a];
+      const vIdx = nodeIdxMap[p.node_b];
+      if (uIdx !== undefined && vIdx !== undefined) {
+        const u = nodes[uIdx], v = nodes[vIdx];
+        px.push(u.x, v.x, null);
+        py.push(u.y, v.y, null);
+        pz.push(u.z, v.z, null);
+      }
     });
 
     const fig = [
@@ -215,28 +209,34 @@ async function loadGraph() {
         type: "scatter3d",
         x: ex, y: ey, z: ez,
         mode: "lines",
-        line: { color: "rgba(255,80,110,0.85)", width: 4 },
+        line: { color: "rgba(120, 120, 130, 0.15)", width: 1.2 },
+        hoverinfo: "none",
+        name: "Known Connections",
+      },
+      {
+        type: "scatter3d",
+        x: px, y: py, z: pz,
+        mode: "lines",
+        line: { color: "rgba(250, 80, 100, 0.9)", width: 4.0 },
         hoverinfo: "none",
         name: "AI Predicted Gaps",
       },
       {
         type: "scatter3d",
-        x: pos.map(p => p.x),
-        y: pos.map(p => p.y),
-        z: pos.map(p => p.z),
+        x: nodes.map(n => n.x),
+        y: nodes.map(n => n.y),
+        z: nodes.map(n => n.z),
         mode: "markers+text",
         marker: {
-          size: 14,
-          color: nodes.map((_, i) => palette[i % palette.length]),
-          line: { color: "rgba(255,255,255,0.2)", width: 1.5 },
+          size: nodes.map(n => n.size),
+          color: nodes.map(n => n.color),
+          line: { color: "rgba(255,255,255,0.3)", width: 2 },
+          opacity: 1.0
         },
-        text: nodes.map(n => n.length > 25 ? n.slice(0, 22) + "…" : n),
-        hovertext: nodes.map((nd, i) => {
-          const related = edges.filter(e => e.a === nd || e.b === nd);
-          return `<b>${nd}</b><br>Predicted connections: ${related.length}`;
-        }),
+        text: nodes.map(n => n.id.length > 25 ? n.id.slice(0, 22) + "…" : n.id),
+        hovertext: nodes.map(n => `<b>${n.id}</b><br>Connections: ${n.degree}`),
         hoverinfo: "text",
-        textfont: { color: "rgba(220,220,240,0.7)", size: 9 },
+        textfont: { color: "rgba(220,220,240,0.8)", size: 10 },
         textposition: "top center",
         name: "Research Concepts",
       },
@@ -246,23 +246,23 @@ async function loadGraph() {
     Plotly.newPlot("graph-container", fig, {
       paper_bgcolor: "#0f1117",
       scene: {
-        xaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(80,80,100,0.12)" },
-        yaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(80,80,100,0.12)" },
-        zaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(80,80,100,0.12)" },
+        xaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(90,90,100,0.2)" },
+        yaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(90,90,100,0.2)" },
+        zaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(90,90,100,0.2)" },
         bgcolor: "#0f1117",
-        camera: { eye: { x: 1.3, y: 1.3, z: 0.9 } },
+        camera: { eye: { x: 1.0, y: 1.0, z: 0.8 }, center: { x: 0, y: 0, z: 0 } },
+        aspectmode: "cube"
       },
       margin: { l: 0, r: 0, t: 0, b: 0 },
       height: 680,
       legend: {
-        bgcolor: "rgba(20,22,35,0.92)",
-        bordercolor: "rgba(100,180,255,0.25)",
-        borderwidth: 1,
-        font: { color: "#e0e0e0", size: 12, family: "Inter" },
+        bgcolor: "rgba(30,30,35,0.9)",
+        bordercolor: "rgba(100,180,255,0.4)",
+        borderwidth: 2,
+        font: { color: "#e0e0e0", size: 12, family: "Arial" },
         x: 0.02, y: 0.98,
       },
       hovermode: "closest",
-      font: { color: "#e0e0e0", family: "Inter" },
     }, { responsive: true, scrollZoom: true, displaylogo: false });
 
   } catch (e) {
@@ -273,8 +273,8 @@ async function loadGraph() {
 /* ══════════════ Search ══════════════ */
 async function runSearch() {
   const query = document.getElementById("search-input").value.trim();
-  const topK  = parseInt(document.getElementById("topk-select").value);
-  const area  = document.getElementById("search-results");
+  const topK = parseInt(document.getElementById("topk-select").value);
+  const area = document.getElementById("search-results");
 
   if (!query) {
     area.innerHTML = `<div class="msg-box msg-warn">Please enter a search term.</div>`;
