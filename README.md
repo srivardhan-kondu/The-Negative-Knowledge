@@ -153,13 +153,15 @@ Final saved model: Best across 3 initializations
 
 This guarantees we don't get accidentally stuck in a poor local minimum in the loss landscape.
 
-### 📊 **Explainable 3D Dashboard**
-- Real-time Plotly 3D graph rotation and zoom
+### 📊 **Client-Server Explainable Dashboard**
+- **Backend**: Flask REST API serving predictions, graph data, and metrics in real-time.
+- **Frontend**: Premium HTML/JS/CSS Single Page Application (SPA).
+- Real-time Plotly 3D graph rotation and zoom (loads all 659 nodes with dynamic sizing).
 - AI transparency panels showing:
   - Strict Test and Validation performance metrics
   - Complete Neural architecture details
   - Top AI research gap predictions (with actual Probability Scores)
-  - Full end-to-end Methodology explanation
+  - Interactive Search for any concept in the knowledge graph
 
 ---
 
@@ -193,12 +195,12 @@ python -m spacy download en_core_sci_sm
 python -m spacy download en_ner_bc5cdr_md
 ```
 
-4. **Launch the Dashboard**
+4. **Launch the Application**
 ```bash
-streamlit run scripts/visualize_credible_ai.py
+bash run.sh
 ```
 
-Your browser will open showing the interactive 3D visualization and dashboard!
+Your browser will automatically open `http://localhost:5050` showing the interactive 3D visualization and dashboard!
 
 ---
 
@@ -228,7 +230,17 @@ Your browser will open showing the interactive 3D visualization and dashboard!
          │
          ▼
 ┌─────────────────┐
-│ 5. Transparent UI│  ──▶  visualize_credible_ai.py (3D Interactive UI)
+│ 4. GNN Training │  ──▶  train_gnn.py (GCN Encoder + Bilinear MLP Decoder)
+└─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 5. API Backend  │  ──▶  server.py (Flask REST API serving predictions)
+└─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 6. Frontend SPA │  ──▶  frontend/index.html (HTML/JS 3D Visualization)
 └─────────────────┘
 ```
 
@@ -274,12 +286,19 @@ The-Negative-Knowledge/
 │   ├── train_semantic_embeddings.py # 768D SciBERT training
 │   ├── build_pyg_graph.py        # 896D Feature Concatenation
 │   ├── train_gnn.py              # Bilinear Decoder model training
-│   └── visualize_credible_ai.py  # 3D visualization dashboard
+│   ├── visualize_credible_ai.py  # Old static HTML generator
+│   └── streamlit_app.py          # Legacy Streamlit prototype
+├── frontend/             # Single Page Application UI
+│   ├── index.html               # Main dashboard layout
+│   ├── styles.css               # Premium dark theme styling
+│   └── app.js                   # API client and Plotly 3D rendering
 ├── data/                 # Data files (gitignored)
 │   ├── mindgap.db               # SQLite database
 │   ├── pyg_graph_splits.pt      # Train/Val/Test PyTorch splits
-│   ├── gnn_model.pt             # Trained GCN + Decoder Dict
-│   └── graph_credible_ai.html   # Final visualization UI output
+│   └── gnn_model.pt             # Trained GCN + Decoder Dict
+├── server.py             # Flask REST API Backend
+├── run.sh                # Super-convenience launcher script
+├── demo.sh               # Alias to run.sh for demos
 ├── config.yaml           # Domain configuration
 ├── requirements.txt     # Python dependencies
 └── README.md           # This file
@@ -317,10 +336,11 @@ domains:
 - **en_core_sci_sm** - Broad Scientific corpus
 - **en_ner_bc5cdr_md** - Disease/Chemical corpus
 
-### Data & UI
+### Data & Web
 - **SQLite** - High-speed Local DB
-- **Plotly** - WebGL 3D Network graphs
-- **Streamlit** - Python UI Framework
+- **Flask** - REST API Backend serving the PyTorch model
+- **HTML/CSS/JS** - Lightweight, high-performance web frontend
+- **Plotly.js** - WebGL 3D Network graphs
 
 ---
 
