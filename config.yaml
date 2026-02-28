@@ -1,0 +1,110 @@
+# MindGap Explorer - Domain Configuration
+# This file defines different medical domains and their search parameters
+
+domains:
+  mental_health:
+    name: "Mental Health"
+    description: "Mental health disorders, therapies, and interventions"
+    search_terms:
+      - "depression mental health"
+      - "anxiety disorder treatment"
+      - "PTSD therapy"
+      - "suicidal ideation risk"
+      - "cognitive behavioral therapy"
+      - "dialectical behavior therapy"
+      - "bipolar disorder treatment"
+      - "mindfulness therapy"
+      - "trauma mental health"
+      - "loneliness depression"
+    
+    entity_categories:
+      disorder:
+        keywords: ["depression", "anxiety", "ptsd", "bipolar", "panic", "ocd", "schizophrenia", "phobia", "adhd", "autism"]
+        color: "#ff6b9d"
+      therapy:
+        keywords: ["therapy", "cbt", "dbt", "treatment", "counseling", "psychotherapy", "mindfulness", "ssri", "antidepressant", "medication"]
+        color: "#4ade80"
+      risk_factor:
+        keywords: ["trauma", "abuse", "stress", "insomnia", "sleep", "loneliness", "poverty", "bullying", "neglect"]
+        color: "#ffa500"
+      outcome:
+        keywords: ["suicide", "relapse", "recovery", "self harm", "quality of life", "mortality", "ideation", "remission"]
+        color: "#9b59b6"
+      population:
+        keywords: ["adolescent", "child", "teen", "student", "women", "men", "adult", "elderly", "veteran"]
+        color: "#3498db"
+
+  diabetes:
+    name: "Diabetes"
+    description: "Diabetes research, treatments, and complications"
+    search_terms:
+      - "type 2 diabetes treatment"
+      - "insulin resistance therapy"
+      - "diabetic complications"
+      - "blood glucose management"
+      - "diabetes diet intervention"
+      - "metformin diabetes"
+      - "diabetic neuropathy"
+      - "diabetes prevention"
+      - "gestational diabetes"
+      - "diabetes cardiovascular risk"
+    
+    entity_categories:
+      condition:
+        keywords: ["diabetes", "hyperglycemia", "hypoglycemia", "insulin resistance", "prediabetes", "type 1", "type 2", "gestational"]
+        color: "#ff6b9d"
+      treatment:
+        keywords: ["insulin", "metformin", "sulfonylurea", "diet", "exercise", "medication", "glp-1", "sglt2", "therapy"]
+        color: "#4ade80"
+      complication:
+        keywords: ["neuropathy", "retinopathy", "nephropathy", "cardiovascular", "foot ulcer", "amputation", "stroke", "heart disease"]
+        color: "#ffa500"
+      outcome:
+        keywords: ["hba1c", "blood glucose", "remission", "control", "quality of life", "mortality", "hospitalization"]
+        color: "#9b59b6"
+      population:
+        keywords: ["children", "adolescent", "adult", "elderly", "pregnant", "obese", "underweight", "athlete"]
+        color: "#3498db"
+
+  cancer:
+    name: "Cancer"
+    description: "Cancer research, treatments, and outcomes"
+    search_terms:
+      - "breast cancer treatment"
+      - "chemotherapy effectiveness"
+      - "immunotherapy cancer"
+      - "cancer screening"
+      - "lung cancer therapy"
+      - "radiation oncology"
+      - "cancer metastasis"
+      - "tumor biomarkers"
+      - "cancer prevention"
+      - "palliative cancer care"
+    
+    entity_categories:
+      cancer_type:
+        keywords: ["breast cancer", "lung cancer", "colon cancer", "prostate", "leukemia", "lymphoma", "melanoma", "pancreatic"]
+        color: "#ff6b9d"
+      treatment:
+        keywords: ["chemotherapy", "radiation", "immunotherapy", "surgery", "targeted therapy", "hormone therapy", "car-t"]
+        color: "#4ade80"
+      risk_factor:
+        keywords: ["smoking", "obesity", "radiation exposure", "genetic mutation", "brca", "family history", "carcinogen"]
+        color: "#ffa500"
+      outcome:
+        keywords: ["survival", "remission", "metastasis", "recurrence", "mortality", "progression", "response rate"]
+        color: "#9b59b6"
+      population:
+        keywords: ["pediatric", "adult", "elderly", "women", "men", "smokers", "non-smokers", "high-risk"]
+        color: "#3498db"
+
+# Default domain (can be changed)
+default_domain: "mental_health"
+
+# API settings
+semantic_scholar:
+  base_url: "https://api.semanticscholar.org/graph/v1/paper/search"
+  fields: "title,abstract,year,authors,venue"
+  papers_per_term: 1000
+  pages: 10
+  results_per_page: 100
