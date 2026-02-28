@@ -33,5 +33,10 @@ kaleido>=0.2.1
 
 # Database
 
+# Web API
+flask>=3.0.0
+flask-cors>=4.0.0
+streamlit>=1.30.0
+
 # Configuration
 pyyaml>=6.0
