@@ -640,6 +640,30 @@ body {
   box-shadow: 0 0 12px rgba(96, 208, 255, 0.15);
 }
 
+/* Side-by-side layout: graph + predictions */
+.graph-split {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.graph-col {
+  flex: 2;
+  min-width: 0;
+}
+
+.predictions-col {
+  flex: 1;
+  min-width: 280px;
+  max-width: 380px;
+}
+
+.predictions-col .predictions-panel {
+  height: 700px;
+  overflow-y: auto;
+  margin-bottom: 0;
+}
+
 #graph-container {
   width: 100%;
   height: 700px;
@@ -648,7 +672,6 @@ body {
   border-radius: var(--radius);
   overflow: hidden;
   position: relative;
-  margin-bottom: 24px;
 }
 
 .loading-state {
