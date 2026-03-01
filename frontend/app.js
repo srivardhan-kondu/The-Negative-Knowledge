@@ -42,6 +42,11 @@ function switchTab(name) {
     loadGraph();
     window._graphLoaded = true;
   }
+  // Lazy-load predictions when tab is first opened
+  if (name === "predictions" && !window._predsLoaded) {
+    loadGlobalPredictions();
+    window._predsLoaded = true;
+  }
 }
 
 /* ══════════════ Sidebar Toggle (mobile) ══════════════ */
@@ -171,9 +176,8 @@ async function loadGraph() {
   const loading = document.getElementById("graph-loading");
 
   try {
-    // 1. Fetch top predictions (for red edges)
-    const predsPromise = loadGlobalPredictions();
-    // 2. Fetch full graph layout
+    // 1. Fetch top predictions (for red edges) and graph layout in parallel
+    const predsPromise = apiFetch("/api/predictions?top_k=20&n_samples=10000");
     const graphPromise = apiFetch("/api/graph_data");
 
     const [preds, graphData] = await Promise.all([predsPromise, graphPromise]);
@@ -258,7 +262,7 @@ async function loadGraph() {
         aspectmode: "cube",
       },
       margin: { l: 0, r: 0, t: 0, b: 0 },
-      height: 600,
+      height: container.clientHeight || 800,
       legend: {
         bgcolor: "rgba(30,30,35,0.9)",
         bordercolor: "rgba(100,180,255,0.4)",
