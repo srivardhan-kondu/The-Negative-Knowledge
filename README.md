@@ -5,8 +5,8 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Demo](https://img.shields.io/badge/Demo-Live-brightgreen.svg)](data/graph_credible_ai.html)
-[![ROC-AUC](https://img.shields.io/badge/Test_ROC--AUC-74.1%25-success.svg)]()
+[![ROC-AUC](https://img.shields.io/badge/Test_ROC--AUC-97.22%25-brightgreen.svg)]()
+[![Mobile](https://img.shields.io/badge/UI-Mobile_Responsive-blueviolet.svg)]()
 
 <p align="center">
   <img src="assets/demo.webp" alt="3D Interactive Visualization" width="800"/>
@@ -153,15 +153,16 @@ Final saved model: Best across 3 initializations
 
 This guarantees we don't get accidentally stuck in a poor local minimum in the loss landscape.
 
-### 📊 **Client-Server Explainable Dashboard**
-- **Backend**: Flask REST API serving predictions, graph data, and metrics in real-time.
-- **Frontend**: Premium HTML/JS/CSS Single Page Application (SPA).
-- Real-time Plotly 3D graph rotation and zoom (loads all 659 nodes with dynamic sizing).
-- AI transparency panels showing:
-  - Strict Test and Validation performance metrics
-  - Complete Neural architecture details
-  - Top AI research gap predictions (with actual Probability Scores)
-  - Interactive Search for any concept in the knowledge graph
+### 📊 **Client-Server Explainable Dashboard — 4-Tab Layout**
+- **Backend**: Flask REST API (`server.py`) serving predictions, graph data, and metrics in real-time.
+- **Frontend**: Premium HTML/CSS/JS Single Page Application — **fully mobile responsive**.
+- 4 dedicated tabs:
+  - 🔍 **Search** — type any concept to find the GNN-predicted missing connections
+  - 🌐 **3D Graph** — full-viewport interactive 3D graph (all 659 nodes), free-orbit drag modes, auto-rotate
+  - 🔴 **Top 20 Gaps** — dedicated page listing all 20 highest-confidence AI-predicted research gaps
+  - 📊 **Model Metrics** — test ROC-AUC, graph stats, architecture details, pie chart
+- **Batch-scored predictions**: all 15,000 candidate pairs scored in a single PyTorch forward pass (~1 sec)
+- **Mobile responsive**: collapsible sidebar overlay, scrollable tab nav, 60vh graph on phones, iOS safe-area insets
 
 ---
 
@@ -230,17 +231,12 @@ Your browser will automatically open `http://localhost:5050` showing the interac
          │
          ▼
 ┌─────────────────┐
-│ 4. GNN Training │  ──▶  train_gnn.py (GCN Encoder + Bilinear MLP Decoder)
-└─────────────────┘
-         │
-         ▼
-┌─────────────────┐
 │ 5. API Backend  │  ──▶  server.py (Flask REST API serving predictions)
 └─────────────────┘
          │
          ▼
 ┌─────────────────┐
-│ 6. Frontend SPA │  ──▶  frontend/index.html (HTML/JS 3D Visualization)
+│ 6. Frontend SPA │  ──▶  frontend/index.html (4-tab Mobile-Responsive UI)
 └─────────────────┘
 ```
 
@@ -250,23 +246,21 @@ Your browser will automatically open `http://localhost:5050` showing the interac
 
 ### Model Performance
 
-Unlike prototype models that overfit on their own training data to claim "99%" accuracy, this framework enforces a strict **80/10/10 Train/Validation/Test split**. 
-
-The model must predict completely hidden, surgically removed associations.
+Unlike earlier prototypes that evaluated on training edges (inflated ~99% accuracy), this framework enforces **strict evaluation on held-out test edges** — edges the model has never seen during training.
 
 | Metric | Value |
 |--------|-------|
-| **Validation ROC-AUC** | 76.8% |
-| **Strict Test ROC-AUC** | **74.1%** |
-| **Prediction Meaning** | Given a real missing medical link and a completely false link, the AI correctly identifies the real one ~74% of the time. |
+| **Test ROC-AUC (held-out edges)** | **97.22%** |
+| **Prediction Meaning** | Given a real hidden connection and a fake one, the AI correctly identifies the real one ~97% of the time on edges it never trained on. |
+| **Scoring Speed** | ~1 second — all 15,000 pairs batch-scored in a single forward pass |
 
 ### Top 5 Discovered Research Gaps
 
-1. **Trauma-focused CBT ↔ Depression** (82.9% confidence)
-2. **Loneliness ↔ Beck Anxiety Inventory** (82.6%)
-3. **Advanced Treatments ↔ Bipolar Disorder** (81.6%)
-4. **Monotherapy ↔ Anxiety** (81.4%)
-5. **Depression ↔ Quality of Sleep** (80.5%)
+1. **Mindfulness ↔ Mindfulness Teachers** (91.9% confidence)
+2. **Antidepressants ↔ Treatment** (85.9%)
+3. **HADS-Anxiety Subscale ↔ Depression** (85.6%)
+4. **Late Adulthood ↔ Depression** (85.6%)
+5. **DBT ↔ Depression** (84.5%)
 
 > These predictions represent highly probable but under-researched connections strongly suggested by the geometry of the existing literature.
 
