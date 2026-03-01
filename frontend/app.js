@@ -163,6 +163,9 @@ async function loadGlobalPredictions() {
 }
 
 /* ══════════════ 3D Graph ══════════════ */
+const DEFAULT_CAMERA = { eye: { x: 1.25, y: 1.25, z: 1.0 }, center: { x: 0, y: 0, z: 0 }, up: { x: 0, y: 0, z: 1 } };
+let _autoRotateTimer = null;
+
 async function loadGraph() {
   const container = document.getElementById("graph-container");
   const loading = document.getElementById("graph-loading");
@@ -246,15 +249,16 @@ async function loadGraph() {
     Plotly.newPlot("graph-container", fig, {
       paper_bgcolor: "#0f1117",
       scene: {
-        xaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(90,90,100,0.2)" },
-        yaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(90,90,100,0.2)" },
-        zaxis: { showbackground: false, showticklabels: false, gridcolor: "rgba(90,90,100,0.2)" },
+        xaxis: { showbackground: false, showticklabels: false, showgrid: true, gridcolor: "rgba(90,90,100,0.15)", zeroline: false },
+        yaxis: { showbackground: false, showticklabels: false, showgrid: true, gridcolor: "rgba(90,90,100,0.15)", zeroline: false },
+        zaxis: { showbackground: false, showticklabels: false, showgrid: true, gridcolor: "rgba(90,90,100,0.15)", zeroline: false },
         bgcolor: "#0f1117",
-        camera: { eye: { x: 1.0, y: 1.0, z: 0.8 }, center: { x: 0, y: 0, z: 0 } },
-        aspectmode: "cube"
+        camera: { ...DEFAULT_CAMERA },
+        dragmode: "orbit",
+        aspectmode: "cube",
       },
       margin: { l: 0, r: 0, t: 0, b: 0 },
-      height: 680,
+      height: 700,
       legend: {
         bgcolor: "rgba(30,30,35,0.9)",
         bordercolor: "rgba(100,180,255,0.4)",
@@ -263,11 +267,56 @@ async function loadGraph() {
         x: 0.02, y: 0.98,
       },
       hovermode: "closest",
-    }, { responsive: true, scrollZoom: true, displaylogo: false });
+    }, {
+      responsive: true,
+      scrollZoom: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ["toImage"],
+    });
 
   } catch (e) {
     container.innerHTML = `<div class="loading-state"><p style="color:var(--pink)">❌ Failed to load graph: ${e.message}</p></div>`;
   }
+}
+
+/* ══════════════ Graph Controls ══════════════ */
+function setDragMode(mode) {
+  const el = document.getElementById("graph-container");
+  if (!el || !el.layout) return;
+  Plotly.relayout(el, { "scene.dragmode": mode });
+  document.querySelectorAll(".graph-controls .ctrl-btn").forEach(b => b.classList.remove("active"));
+  const btn = document.getElementById("btn-" + mode);
+  if (btn) btn.classList.add("active");
+}
+
+function resetCamera() {
+  const el = document.getElementById("graph-container");
+  if (!el || !el.layout) return;
+  if (_autoRotateTimer) { cancelAnimationFrame(_autoRotateTimer); _autoRotateTimer = null; document.getElementById("btn-autorotate").classList.remove("active"); }
+  Plotly.relayout(el, { "scene.camera": { ...DEFAULT_CAMERA } });
+}
+
+function toggleAutoRotate() {
+  const btn = document.getElementById("btn-autorotate");
+  if (_autoRotateTimer) {
+    cancelAnimationFrame(_autoRotateTimer);
+    _autoRotateTimer = null;
+    btn.classList.remove("active");
+    return;
+  }
+  btn.classList.add("active");
+  let angle = 0;
+  const radius = 1.6;
+  function rotate() {
+    angle += 0.006;
+    const el = document.getElementById("graph-container");
+    if (!el || !el.layout) { _autoRotateTimer = null; return; }
+    Plotly.relayout(el, {
+      "scene.camera.eye": { x: radius * Math.cos(angle), y: radius * Math.sin(angle), z: 0.8 },
+    });
+    _autoRotateTimer = requestAnimationFrame(rotate);
+  }
+  _autoRotateTimer = requestAnimationFrame(rotate);
 }
 
 /* ══════════════ Search ══════════════ */
