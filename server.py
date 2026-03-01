@@ -25,7 +25,6 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from sklearn.metrics import roc_auc_score
 from torch_geometric.nn import GCNConv
-from torch_geometric.utils import negative_sampling
 
 # ─── App Setup ────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder="frontend", static_url_path="")
@@ -129,19 +128,14 @@ def load_model():
     with torch.no_grad():
         z = model(train_data.x, train_data.edge_index, train_data.edge_weight)
 
-    # ROC-AUC
-    neg_ei = negative_sampling(
-        edge_index=train_data.edge_index,
-        num_nodes=train_data.num_nodes,
-        num_neg_samples=min(1000, train_data.edge_index.size(1)),
-    )
+    # ROC-AUC — evaluated on HELD-OUT TEST edges (not training edges)
+    test_data = splits["test_data"].to(device)
     with torch.no_grad():
-        pos_out = torch.sigmoid(decoder(z, train_data.edge_index[:, :1000])).cpu()
-        neg_out = torch.sigmoid(decoder(z, neg_ei)).cpu()
-    roc_auc = roc_auc_score(
-        [1] * len(pos_out) + [0] * len(neg_out),
-        list(pos_out.numpy()) + list(neg_out.numpy()),
-    )
+        test_scores = torch.sigmoid(
+            decoder(z, test_data.edge_label_index)
+        ).cpu().numpy()
+    test_labels = test_data.edge_label.cpu().numpy()
+    roc_auc = roc_auc_score(test_labels, test_scores)
 
     # DB stats
     conn = sqlite3.connect(os.path.join(DATA, "mindgap.db"))
