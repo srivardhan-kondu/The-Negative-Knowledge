@@ -258,7 +258,7 @@ async function loadGraph() {
         aspectmode: "cube",
       },
       margin: { l: 0, r: 0, t: 0, b: 0 },
-      height: 700,
+      height: 600,
       legend: {
         bgcolor: "rgba(30,30,35,0.9)",
         bordercolor: "rgba(100,180,255,0.4)",
