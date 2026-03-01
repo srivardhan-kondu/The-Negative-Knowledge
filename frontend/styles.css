@@ -828,25 +828,244 @@ body {
   padding: 6px 0;
 }
 
-/* ═══════════════ RESPONSIVE ═══════════════ */
+/* ═══════════════════════════════════════════
+   RESPONSIVE  ·  Mobile-first breakpoints
+   ═══════════════════════════════════════════ */
+
+/* ── Sidebar overlay backdrop ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* ── Tablet  (max 1024px) ── */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-w: 240px;
+  }
+
+  .metrics-grid {
+    gap: 18px;
+  }
+
+  .pred-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Mobile landscape + small tablet  (max 900px) ── */
 @media (max-width: 900px) {
+
+  /* Hide sidebar by default, slide in as overlay */
   .main {
     margin-left: 0;
   }
 
   .sidebar {
     transform: translateX(-100%);
+    z-index: 200;
+    width: 280px;
+    box-shadow: 4px 0 40px rgba(0, 0, 0, 0.6);
   }
 
   .sidebar.open {
     transform: translateX(0);
   }
 
+  /* Show hamburger */
   .menu-btn {
     display: block;
   }
 
+  /* Topbar compact */
+  .topbar {
+    padding: 12px 16px 10px;
+    gap: 10px;
+  }
+
+  .page-title {
+    font-size: 17px;
+  }
+
+  .page-sub {
+    font-size: 11px;
+  }
+
+  /* Tab nav — scrollable horizontal row */
+  .tab-nav {
+    padding: 8px 12px;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+
+  .tab-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    font-size: 12px;
+    padding: 8px 14px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Tab content padding */
+  .tab-content {
+    padding: 16px 14px;
+  }
+
+  .tab-content.tab-fullpage {
+    padding: 6px 8px 0;
+  }
+
+  /* Graph controls wrap gracefully */
+  .graph-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .graph-controls {
+    gap: 4px;
+  }
+
+  .ctrl-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .toolbar-sep {
+    display: none;
+  }
+
+  /* Graph — full width, 60vh on mobile */
+  #graph-container {
+    min-height: 60vh;
+  }
+
+  /* Metrics stack to 1 column */
   .metrics-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Predictions — single column */
+  .pred-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Search */
+  .search-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .search-input {
+    min-width: 0;
+  }
+
+  .topk-select,
+  .search-btn {
+    flex-shrink: 0;
+  }
+
+  /* Prediction rows tighter */
+  .pred-row {
+    padding: 9px 12px;
+    gap: 8px;
+  }
+
+  .pred-nodes {
+    font-size: 12px;
+  }
+
+  /* Pie chart shorter */
+  #pie-chart {
+    height: 240px;
+  }
+}
+
+/* ── Phone portrait  (max 480px) ── */
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 15px;
+  }
+
+  .page-sub {
+    display: none;
+  }
+
+  .tab-btn {
+    font-size: 11px;
+    padding: 7px 10px;
+  }
+
+  /* Graph fills screen height minus topbar + tabs */
+  #graph-container {
+    min-height: calc(100svh - 130px);
+  }
+
+  /* Even more compact controls */
+  .ctrl-btn {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  /* Search stack vertical */
+  .search-row {
+    flex-direction: column;
+  }
+
+  .search-input,
+  .topk-select,
+  .search-btn {
+    width: 100%;
+  }
+
+  .search-btn {
+    text-align: center;
+  }
+
+  /* Metric cards */
+  .metric-value {
+    font-size: 22px;
+  }
+
+  .metric-value.big {
+    font-size: 28px;
+  }
+
+  /* Predictions single column tight */
+  .pred-score {
+    min-width: 44px;
+    font-size: 13px;
+  }
+
+  /* Sidebar narrower */
+  .sidebar {
+    width: 260px;
+  }
+}
+
+/* ── Safe-area insets for notched phones (iOS) ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .tab-nav {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

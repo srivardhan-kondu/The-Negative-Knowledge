@@ -51,7 +51,10 @@ function switchTab(name) {
 
 /* ══════════════ Sidebar Toggle (mobile) ══════════════ */
 function toggleSidebar() {
-  document.getElementById("sidebar").classList.toggle("open");
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  sidebar.classList.toggle("open");
+  overlay.classList.toggle("active");
 }
 
 /* ══════════════ Load Metrics (sidebar + metrics tab) ══════════════ */
