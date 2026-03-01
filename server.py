@@ -284,23 +284,48 @@ def graph_data():
 
 @app.route("/api/predictions")
 def predictions():
-    """Return top-20 globally predicted missing links."""
+    """Return top-20 globally predicted missing links (batch-scored for speed)."""
     G = _ctx["G"]
     nodes = _ctx["nodes"]
+    node_index = _ctx["node_index"]
     top_k = int(request.args.get("top_k", 20))
     n_samples = int(request.args.get("n_samples", 15000))
 
     rng = np.random.default_rng(42)
-    preds = []
-    for _ in range(n_samples):
-        a, b = rng.choice(nodes, 2, replace=False)
-        if not G.has_edge(a, b):
-            preds.append((score_pair(a, b), a, b))
 
-    preds.sort(reverse=True)
+    # 1. Sample candidate pairs that are NOT already connected
+    pairs = []
+    seen = set()
+    attempts = 0
+    while len(pairs) < n_samples and attempts < n_samples * 3:
+        attempts += 1
+        i, j = rng.integers(0, len(nodes), size=2)
+        if i == j:
+            continue
+        key = (min(i, j), max(i, j))
+        if key in seen:
+            continue
+        a, b = nodes[i], nodes[j]
+        if not G.has_edge(a, b):
+            pairs.append((i, j, a, b))
+            seen.add(key)
+
+    if not pairs:
+        return jsonify([])
+
+    # 2. Batch score ALL pairs in one forward pass
+    src_idx = torch.tensor([p[0] for p in pairs], device=_ctx["device"])
+    dst_idx = torch.tensor([p[1] for p in pairs], device=_ctx["device"])
+    edge_index = torch.stack([src_idx, dst_idx], dim=0)
+
+    with torch.no_grad():
+        scores = torch.sigmoid(_ctx["decoder"](_ctx["z"], edge_index)).cpu().numpy()
+
+    # 3. Sort and return top_k
+    ranked = sorted(zip(scores, pairs), key=lambda x: x[0], reverse=True)
     return jsonify([
-        {"score": round(p, 4), "score_pct": f"{p:.1%}", "node_a": u, "node_b": v}
-        for p, u, v in preds[:top_k]
+        {"score": round(float(s), 4), "score_pct": f"{s:.1%}", "node_a": p[2], "node_b": p[3]}
+        for s, p in ranked[:top_k]
     ])
 
 
