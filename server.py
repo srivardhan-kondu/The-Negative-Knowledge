@@ -147,7 +147,7 @@ def load_model():
     # Cache globally
     _ctx.update(
         G=G, nodes=nodes, node_index=node_index,
-        z=z, decoder=decoder, device=device,
+        z=z, model=model, decoder=decoder, device=device,
         roc_auc=roc_auc, source_stats=source_stats,
         train_data=train_data, in_dim=in_dim,
     )
@@ -255,12 +255,12 @@ def graph_data():
         # INCREASED SIZE: 15-45 (was 8-28) from original script
         size = 15 + (degree / max_degree) * 30
         
-        # Professional gradient: dark blue to bright cyan
+        # Academic gradient: muted blue to vivid indigo
         intensity = degree / max_degree
-        r = int(40 + intensity * 70)   # 40-110
-        g = int(150 + intensity * 105) # 150-255
-        b = int(200 + intensity * 55)  # 200-255
-        opacity = 0.85 + (degree / max_degree) * 0.15
+        r = int(30 + intensity * 90)   # 30-120
+        g = int(80 + intensity * 80)   # 80-160
+        b = int(180 + intensity * 75)  # 180-255
+        opacity = 0.80 + (degree / max_degree) * 0.20
         
         nodes_data.append({
             "id": n,
@@ -381,6 +381,263 @@ def search():
         "query": query,
         "matches_found": len(matches),
         "results": all_results,
+    })
+
+
+# ─── Explainability Helpers ───────────────────────────────────────────────────
+
+def _gradient_feature_attribution(u_name, v_name):
+    """
+    GNNExplainer-style gradient attribution.
+    Backprop the link score through the GCN encoder to get per-feature importance
+    for both nodes, then split into Node2Vec (topology) vs SciBERT (semantics).
+    """
+    ui = _ctx["node_index"][u_name]
+    vi = _ctx["node_index"][v_name]
+    device = _ctx["device"]
+    model = _ctx.get("model")
+    decoder = _ctx["decoder"]
+    train_data = _ctx["train_data"]
+
+    if model is None:
+        # Fallback: use pre-computed embeddings if model ref not cached
+        return None
+
+    # Enable gradient tracking on input features
+    x = train_data.x.detach().clone().requires_grad_(True)
+    edge_index = train_data.edge_index
+    edge_weight = train_data.edge_weight
+
+    # Forward pass (with gradients)
+    model.train()  # enable grad flow through dropout/batchnorm
+    z = model(x, edge_index, edge_weight)
+    ei = torch.tensor([[ui], [vi]], device=device)
+    score = torch.sigmoid(decoder(z, ei))
+    score.backward()
+    model.eval()
+
+    grad_u = x.grad[ui].detach().cpu().numpy()
+    grad_v = x.grad[vi].detach().cpu().numpy()
+
+    # Feature importance = |gradient| × |feature value|
+    feat_u = train_data.x[ui].detach().cpu().numpy()
+    feat_v = train_data.x[vi].detach().cpu().numpy()
+    importance_u = np.abs(grad_u) * np.abs(feat_u)
+    importance_v = np.abs(grad_v) * np.abs(feat_v)
+    combined = importance_u + importance_v
+
+    # Split: first 128 dims = Node2Vec (topology), remaining = SciBERT (semantics)
+    n2v_dim = 128
+    topo_imp = float(combined[:n2v_dim].sum())
+    sem_imp = float(combined[n2v_dim:].sum())
+    total = topo_imp + sem_imp + 1e-10
+
+    # Top feature dimensions
+    top_dims = np.argsort(combined)[::-1][:20]
+    top_features = []
+    for d in top_dims:
+        top_features.append({
+            "dim": int(d),
+            "importance": round(float(combined[d]), 6),
+            "source": "Node2Vec (topology)" if d < n2v_dim else "SciBERT (semantics)",
+        })
+
+    return {
+        "topology_pct": round(topo_imp / total, 4),
+        "semantics_pct": round(sem_imp / total, 4),
+        "topology_raw": round(topo_imp, 6),
+        "semantics_raw": round(sem_imp, 6),
+        "top_features": top_features[:10],
+    }
+
+
+def _influential_neighbors(target_node, other_node, top_k=5):
+    """
+    For each neighbor of target_node, check how similar its GNN embedding is
+    to other_node's embedding. High similarity = this neighbor is a 'bridge'
+    that makes the GNN believe a link should exist.
+    """
+    G = _ctx["G"]
+    z = _ctx["z"]
+    node_index = _ctx["node_index"]
+
+    neighbors = list(G.neighbors(target_node))
+    if not neighbors:
+        return []
+
+    other_idx = node_index[other_node]
+    z_other = z[other_idx]
+
+    results = []
+    for nb in neighbors:
+        nb_idx = node_index[nb]
+        z_nb = z[nb_idx]
+        cos_sim = float(F.cosine_similarity(z_nb.unsqueeze(0), z_other.unsqueeze(0)).item())
+        results.append({
+            "node": nb,
+            "relevance": round(cos_sim, 4),
+            "degree": G.degree(nb),
+        })
+
+    results.sort(key=lambda x: x["relevance"], reverse=True)
+    return results[:top_k]
+
+
+def _confidence_level(score):
+    """Map a prediction score to a human-readable confidence level."""
+    if score >= 0.80:
+        return "very_strong", "Very Strong — High-priority research direction. The model is highly confident this connection should exist."
+    elif score >= 0.70:
+        return "strong", "Strong — Likely real research gap. This connection has substantial structural and semantic evidence."
+    elif score >= 0.60:
+        return "moderate", "Moderate — Worth investigating. The model sees meaningful but not overwhelming evidence."
+    else:
+        return "weak", "Weak — Speculative. The signal is only slightly above random chance (50%)."
+
+
+# ─── Explainability Endpoints ─────────────────────────────────────────────────
+
+@app.route("/api/explain", methods=["POST"])
+def explain():
+    """
+    GNNExplainer-style explanation for a predicted link.
+    Body: {"node_a": "cbt", "node_b": "insomnia"}
+    Returns gradient attribution, common neighbors, shortest path,
+    embedding similarity, influential neighbors, paper evidence.
+    """
+    import networkx as nx
+
+    body = request.get_json(force=True) or {}
+    node_a = body.get("node_a", "").strip().lower()
+    node_b = body.get("node_b", "").strip().lower()
+
+    if not node_a or not node_b:
+        return jsonify({"error": "node_a and node_b are required"}), 400
+
+    G = _ctx["G"]
+    nodes = _ctx["nodes"]
+    node_index = _ctx["node_index"]
+    z = _ctx["z"]
+
+    # Find exact match (nodes are lowercase in graph)
+    if node_a not in node_index or node_b not in node_index:
+        return jsonify({"error": f"One or both nodes not found in graph."}), 404
+
+    # 1. Prediction score
+    score = score_pair(node_a, node_b)
+
+    # 2. Gradient-based feature attribution (topology vs semantics)
+    attribution = _gradient_feature_attribution(node_a, node_b)
+
+    # 3. Common neighbors
+    neighbors_a = set(G.neighbors(node_a))
+    neighbors_b = set(G.neighbors(node_b))
+    common = sorted(neighbors_a & neighbors_b, key=lambda n: G.degree(n), reverse=True)
+    common_data = [{"node": n, "degree": G.degree(n)} for n in common[:10]]
+
+    # 4. Shortest path
+    try:
+        path = nx.shortest_path(G, node_a, node_b)
+        path_length = len(path) - 1
+    except nx.NetworkXNoPath:
+        path = []
+        path_length = -1
+
+    # 5. Embedding similarity (cosine)
+    z_a = z[node_index[node_a]]
+    z_b = z[node_index[node_b]]
+    emb_sim = float(F.cosine_similarity(z_a.unsqueeze(0), z_b.unsqueeze(0)).item())
+
+    # 6. Influential neighbors (bridge concepts)
+    inf_neighbors_a = _influential_neighbors(node_a, node_b, top_k=5)
+    inf_neighbors_b = _influential_neighbors(node_b, node_a, top_k=5)
+
+    # 7. Paper evidence from DB
+    paper_evidence = {"papers_a": 0, "papers_b": 0, "titles_a": [], "titles_b": []}
+    try:
+        conn = sqlite3.connect(os.path.join(DATA, "mindgap.db"))
+        cur = conn.cursor()
+        for label, node_name, key_count, key_titles in [
+            ("a", node_a, "papers_a", "titles_a"),
+            ("b", node_b, "papers_b", "titles_b"),
+        ]:
+            cur.execute(
+                "SELECT DISTINCT p.title FROM papers p "
+                "JOIN entities e ON e.paper_id = p.paper_id "
+                "WHERE LOWER(e.entity) = ? LIMIT 50",
+                (node_name,)
+            )
+            titles = [row[0] for row in cur.fetchall()]
+            paper_evidence[key_count] = len(titles)
+            paper_evidence[key_titles] = titles[:5]
+        conn.close()
+    except Exception:
+        pass
+
+    # 8. Confidence level
+    conf_level, conf_desc = _confidence_level(score)
+
+    return jsonify({
+        "node_a": node_a,
+        "node_b": node_b,
+        "score": round(score, 4),
+        "score_pct": f"{score:.1%}",
+        "confidence_level": conf_level,
+        "confidence_description": conf_desc,
+        "feature_attribution": attribution,
+        "common_neighbors": common_data,
+        "common_neighbor_count": len(common),
+        "shortest_path": path,
+        "shortest_path_length": path_length,
+        "embedding_similarity": round(emb_sim, 4),
+        "influential_neighbors_a": inf_neighbors_a,
+        "influential_neighbors_b": inf_neighbors_b,
+        "paper_evidence": paper_evidence,
+        "node_a_degree": G.degree(node_a),
+        "node_b_degree": G.degree(node_b),
+    })
+
+
+@app.route("/api/node_profile")
+def node_profile():
+    """Return detailed profile for a single node."""
+    node_name = request.args.get("node", "").strip().lower()
+    if not node_name or node_name not in _ctx["node_index"]:
+        return jsonify({"error": "Node not found"}), 404
+
+    G = _ctx["G"]
+    degree = G.degree(node_name)
+    neighbors = sorted(G.neighbors(node_name), key=lambda n: G.degree(n), reverse=True)
+
+    # Category from DB
+    category = None
+    paper_count = 0
+    try:
+        conn = sqlite3.connect(os.path.join(DATA, "mindgap.db"))
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT category FROM entities WHERE LOWER(entity) = ? AND category IS NOT NULL LIMIT 1",
+            (node_name,)
+        )
+        row = cur.fetchone()
+        if row:
+            category = row[0]
+        cur.execute(
+            "SELECT COUNT(DISTINCT paper_id) FROM entities WHERE LOWER(entity) = ?",
+            (node_name,)
+        )
+        paper_count = cur.fetchone()[0]
+        conn.close()
+    except Exception:
+        pass
+
+    return jsonify({
+        "node": node_name,
+        "degree": degree,
+        "category": category,
+        "paper_count": paper_count,
+        "top_neighbors": [{"node": n, "degree": G.degree(n)} for n in neighbors[:10]],
+        "total_neighbors": len(neighbors),
     })
 
 
