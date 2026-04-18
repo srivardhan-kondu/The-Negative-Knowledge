@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Negative Knowledge — GNN Research Gap Discovery</title>
+  <meta name="description"
+    content="AI-powered research gap discovery for mental health knowledge graphs using Graph Neural Networks." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">🧠</div>
+      <div>
+        <div class="logo-text">Negative Knowledge</div>
+        <div class="logo-sub">Research Gap Discovery</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-title">Model Performance</div>
+      <div class="metric-card">
+        <div class="metric-label">ROC-AUC Score</div>
+        <div class="metric-value glow-green" id="auc-value">—</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric-card mini">
+          <div class="metric-label">Nodes</div>
+          <div class="metric-value mini" id="node-count">—</div>
+        </div>
+        <div class="metric-card mini">
+          <div class="metric-label">Edges</div>
+          <div class="metric-value mini glow-pink" id="edge-count">—</div>
+        </div>
+      </div>
+      <div class="metric-card mini" style="width:100%;box-sizing:border-box">
+        <div class="metric-label">Research Papers</div>
+        <div class="metric-value mini glow-blue" id="paper-count">—</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-title">Architecture</div>
+      <div class="arch-list">
+        <div class="arch-row"><span class="arch-key">Encoder</span><span class="arch-val">GCNEncoder</span></div>
+        <div class="arch-row"><span class="arch-key">Decoder</span><span class="arch-val">Bilinear + MLP</span></div>
+        <div class="arch-row"><span class="arch-key">Embedding</span><span class="arch-val">64-dim</span></div>
+        <div class="arch-row"><span class="arch-key">Optimizer</span><span class="arch-val">Adam</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-title">Data Sources</div>
+      <div id="sources-list">
+        <div class="loading-sm">Loading...</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-title">Methodology</div>
+      <div class="step-list">
+        <div class="step"><span class="step-num">1</span><span><b>Collection</b> — PubMed papers</span></div>
+        <div class="step"><span class="step-num">2</span><span><b>Extraction</b> — NLP (scispaCy)</span></div>
+        <div class="step"><span class="step-num">3</span><span><b>Graph</b> — co-occurrence links</span></div>
+        <div class="step"><span class="step-num">4</span><span><b>Learning</b> — GNN training</span></div>
+        <div class="step"><span class="step-num">5</span><span><b>Discovery</b> — gap ranking</span></div>
+      </div>
+      <div class="disclaimer">⚠️ AI-generated hypotheses. Requires domain expert validation.</div>
+    </div>
+
+    <div class="api-badge">
+      <span class="api-dot"></span>
+      <span id="api-status">Connecting…</span>
+    </div>
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <main class="main">
+
+    <header class="topbar">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div>
+        <h1 class="page-title">Negative Knowledge</h1>
+        <p class="page-sub">An Explainable GNN-Based Framework for Negative Knowledge Discovery Using Scientific Knowledge Graphs</p>
+      </div>
+    </header>
+
+    <nav class="tab-nav">
+      <button class="tab-btn active" id="tab-search" onclick="switchTab('search')">🔍 Search</button>
+      <button class="tab-btn" id="tab-graph" onclick="switchTab('graph')">🌐 3D Graph</button>
+      <button class="tab-btn" id="tab-predictions" onclick="switchTab('predictions')">🔴 Top 20 Gaps</button>
+      <button class="tab-btn" id="tab-metrics" onclick="switchTab('metrics')">📊 Metrics</button>
+      <button class="tab-btn" id="tab-about" onclick="switchTab('about')">📖 About</button>
+    </nav>
+
+    <!-- ── TAB: Search ── -->
+    <section class="tab-content active" id="content-search">
+      <div class="search-container">
+        <div class="search-header">
+          <h2>Search Research Gaps</h2>
+          <p class="hint">Type a mental health concept to discover under-researched connections predicted by the GNN.
+          </p>
+        </div>
+        <div class="search-row">
+          <input type="text" id="search-input" class="search-input" placeholder="e.g. anxiety, depression, CBT, trauma…"
+            onkeydown="if(event.key==='Enter') runSearch()" />
+          <select id="topk-select" class="topk-select">
+            <option value="5">Top 5</option>
+            <option value="10" selected>Top 10</option>
+            <option value="20">Top 20</option>
+          </select>
+          <button class="search-btn" onclick="runSearch()">Search</button>
+        </div>
+      </div>
+      <div id="search-results" class="results-area">
+        <div class="empty-state">
+          <div class="empty-icon">💡</div>
+          <p>Enter a concept above to discover predicted research gaps.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: 3D Graph (FULL PAGE) ── -->
+    <section class="tab-content tab-fullpage" id="content-graph">
+      <div class="graph-toolbar">
+        <div class="graph-controls">
+          <span class="control-label">Drag:</span>
+          <button class="ctrl-btn active" id="btn-orbit" onclick="setDragMode('orbit')">🔄 Orbit</button>
+          <button class="ctrl-btn" id="btn-turntable" onclick="setDragMode('turntable')">🎡 Turntable</button>
+          <button class="ctrl-btn" id="btn-pan" onclick="setDragMode('pan')">✋ Pan</button>
+          <button class="ctrl-btn" id="btn-zoom" onclick="setDragMode('zoom')">🔎 Zoom</button>
+          <span class="toolbar-sep"></span>
+          <button class="ctrl-btn" id="btn-autorotate" onclick="toggleAutoRotate()">⟳ Auto Rotate</button>
+          <button class="ctrl-btn" onclick="resetCamera()">↺ Reset</button>
+        </div>
+        <div class="graph-legend">
+          <span class="legend-dot red"></span> AI-predicted gaps
+          <span class="legend-dot blue"></span> Research concepts
+        </div>
+      </div>
+      <div id="graph-container">
+        <div class="loading-state" id="graph-loading">
+          <div class="spinner"></div>
+          <p>Loading 3D knowledge graph…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: Top 20 Predictions ── -->
+    <section class="tab-content" id="content-predictions">
+      <div class="predictions-header">
+        <h2>🔴 Top 20 AI-Predicted Research Gaps</h2>
+        <p class="hint">These are the highest-confidence missing links predicted by the GNN across the entire knowledge
+          graph. Each pair represents two concepts that are NOT currently linked in the literature but are strongly
+          predicted to have an undiscovered connection.</p>
+      </div>
+      <div id="global-predictions" class="pred-grid">
+        <div class="loading-sm">Loading predictions…</div>
+      </div>
+    </section>
+
+    <!-- ── TAB: Metrics ── -->
+    <section class="tab-content" id="content-metrics">
+      <div class="metrics-grid">
+        <div class="metrics-block">
+          <h3>🎯 Model Performance</h3>
+          <div class="metric-card big">
+            <div class="metric-label">ROC-AUC Score</div>
+            <div class="metric-value big glow-green" id="metrics-auc">—</div>
+            <div class="auc-bar-wrap">
+              <div class="auc-bar-label">Confidence (0.5 = random · 1.0 = perfect)</div>
+              <div class="auc-bar-bg">
+                <div class="auc-bar-fill" id="auc-bar"></div>
+              </div>
+            </div>
+          </div>
+          <h3 style="margin-top:24px">🗂️ Graph Statistics</h3>
+          <div id="graph-stats-list">
+            <div class="loading-sm">Loading…</div>
+          </div>
+        </div>
+        <div class="metrics-block">
+          <h3>📚 Papers by Source</h3>
+          <div id="pie-chart"></div>
+          <h3 style="margin-top:24px">🏗️ Architecture Details</h3>
+          <div id="arch-detail-list">
+            <div class="loading-sm">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: About / Technical Details ── -->
+    <section class="tab-content" id="content-about">
+      <div class="about-container">
+
+        <!-- ─── Hero ─── -->
+        <div class="about-hero">
+          <h2>An Explainable GNN-Based Framework for Negative Knowledge Discovery Using Scientific Knowledge Graphs</h2>
+          <p class="about-hero-sub">End-to-end technical documentation of the system architecture, data pipeline, model design, and explainability framework.</p>
+          <div class="about-badges">
+            <span class="about-badge blue">Python 3.11+</span>
+            <span class="about-badge red">PyTorch 2.0+</span>
+            <span class="about-badge green">ROC-AUC 97.22%</span>
+            <span class="about-badge purple">Mobile Responsive</span>
+          </div>
+        </div>
+
+        <!-- ─── What is Negative Knowledge ─── -->
+        <div class="about-section">
+          <h3>🎯 What is Negative Knowledge?</h3>
+          <p><strong>Negative Knowledge</strong> represents the <em>unknown unknowns</em> in scientific research — connections that should exist but haven't been studied yet. While traditional literature reviews tell us what has been studied, Negative Knowledge reveals what has been <em>missed</em>.</p>
+          <div class="about-callout">
+            <strong>The Problem:</strong> Over 2.5 million research papers are published every year. No researcher can read all of them. This means promising connections between concepts studied in different sub-fields go unnoticed for years or decades.
+          </div>
+          <p><strong>Our Solution:</strong> Using <strong>Graph Neural Networks (GNNs)</strong> combined with <strong>deep biomedical language models (SciBERT)</strong>, we construct knowledge graphs from research papers and predict which connections are missing. The system explains every prediction through gradient-based GNN attribution.</p>
+        </div>
+
+        <!-- ─── End-to-End Pipeline ─── -->
+        <div class="about-section">
+          <h3>📖 End-to-End Pipeline</h3>
+          <div class="pipeline-flow">
+            <div class="pipeline-step">
+              <div class="pipeline-num">1</div>
+              <div class="pipeline-body">
+                <strong>Data Collection</strong>
+                <span>872 papers from Semantic Scholar + PubMed using 20 mental health search terms. Multi-source deduplication with quality control.</span>
+              </div>
+            </div>
+            <div class="pipeline-arrow">▼</div>
+            <div class="pipeline-step">
+              <div class="pipeline-num">2</div>
+              <div class="pipeline-body">
+                <strong>NLP Entity Extraction</strong>
+                <span>Dual scispaCy NER models (en_core_sci_sm + en_ner_bc5cdr_md) extract ~46,000 raw entities. Synonym normalization reduces to 659 unique concepts.</span>
+              </div>
+            </div>
+            <div class="pipeline-arrow">▼</div>
+            <div class="pipeline-step">
+              <div class="pipeline-num">3</div>
+              <div class="pipeline-body">
+                <strong>Entity Classification</strong>
+                <span>5-category keyword classification: Disorder, Therapy, Risk Factor, Outcome, Population. Unclassified entities are discarded as noise.</span>
+              </div>
+            </div>
+            <div class="pipeline-arrow">▼</div>
+            <div class="pipeline-step">
+              <div class="pipeline-num">4</div>
+              <div class="pipeline-body">
+                <strong>Relation Extraction</strong>
+                <span>Sentence-level co-occurrence with optional negation detection (NegEx) yields 4,856 unique edges.</span>
+              </div>
+            </div>
+            <div class="pipeline-arrow">▼</div>
+            <div class="pipeline-step">
+              <div class="pipeline-num">5</div>
+              <div class="pipeline-body">
+                <strong>Graph &amp; Feature Engineering</strong>
+                <span>NetworkX graph → Node2Vec (64D topology) + SciBERT (768D semantics) → 896D hybrid feature vector per node.</span>
+              </div>
+            </div>
+            <div class="pipeline-arrow">▼</div>
+            <div class="pipeline-step">
+              <div class="pipeline-num">6</div>
+              <div class="pipeline-body">
+                <strong>GNN Training</strong>
+                <span>GCNEncoder + HybridDecoder trained with 3 seeds × 600 epochs, early stopping, cosine warm restarts.</span>
+              </div>
+            </div>
+            <div class="pipeline-arrow">▼</div>
+            <div class="pipeline-step">
+              <div class="pipeline-num">7</div>
+              <div class="pipeline-body">
+                <strong>API &amp; Frontend</strong>
+                <span>Flask REST API serves predictions + explainability. Vanilla HTML/CSS/JS SPA with Plotly.js 3D graph.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Data Sources ─── -->
+        <div class="about-section">
+          <h3>📦 Data Collection Pipeline</h3>
+          <table class="about-table">
+            <thead><tr><th>Source</th><th>API</th><th>Papers Queried</th><th>Rate Limiting</th></tr></thead>
+            <tbody>
+              <tr><td>Semantic Scholar</td><td>graph/v1/paper/search</td><td>25 pages × 100/page × 20 terms</td><td>1.2s between pages</td></tr>
+              <tr><td>PubMed (NIH)</td><td>esearch → efetch</td><td>200 results/term × 20 terms</td><td>0.4s between papers</td></tr>
+            </tbody>
+          </table>
+          <p class="about-note">Final deduplicated dataset: <strong>872 unique mental health research papers</strong>.</p>
+        </div>
+
+        <!-- ─── NLP Pipeline ─── -->
+        <div class="about-section">
+          <h3>🔬 NLP Entity Extraction</h3>
+          <div class="about-stages">
+            <div class="about-stage-card">
+              <div class="about-stage-num">Stage 1</div>
+              <strong>Biomedical NER</strong>
+              <p>Two scispaCy models run in parallel: <code>en_core_sci_sm</code> (broad scientific terms) and <code>en_ner_bc5cdr_md</code> (diseases &amp; chemicals). Maximizes both recall and precision.</p>
+            </div>
+            <div class="about-stage-card">
+              <div class="about-stage-num">Stage 2</div>
+              <strong>Synonym Normalization</strong>
+              <p>Hand-crafted synonym map unifies entities (e.g., "major depressive disorder" → "depression", "cbt" → "cognitive behavioral therapy").</p>
+            </div>
+            <div class="about-stage-card">
+              <div class="about-stage-num">Stage 3</div>
+              <strong>Entity Classification</strong>
+              <p>5 categories via keyword rules: Disorder, Therapy, Risk Factor, Outcome, Population. Non-medical terms are discarded.</p>
+            </div>
+            <div class="about-stage-card">
+              <div class="about-stage-num">Stage 4</div>
+              <strong>Relation Extraction</strong>
+              <p>Sentence-level co-occurrence with optional negation detection (NegEx). Creates pairwise "related_to" edges between entity pairs within same sentence.</p>
+            </div>
+          </div>
+          <table class="about-table">
+            <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Raw Entities Extracted</td><td>~46,000</td></tr>
+              <tr><td>After Deduplication</td><td>659 unique concepts</td></tr>
+              <tr><td>Total Relations</td><td>4,856 unique edges</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ─── Knowledge Graph ─── -->
+        <div class="about-section">
+          <h3>🕸️ Knowledge Graph</h3>
+          <table class="about-table">
+            <thead><tr><th>Property</th><th>Value</th><th>Significance</th></tr></thead>
+            <tbody>
+              <tr><td>Type</td><td>Undirected, weighted</td><td>Co-occurrence is symmetric</td></tr>
+              <tr><td>Nodes</td><td>659</td><td>Unique medical concepts</td></tr>
+              <tr><td>Edges</td><td>4,856</td><td>Co-occurrence relationships</td></tr>
+              <tr><td>Density</td><td>~2.24%</td><td>Extremely sparse graph</td></tr>
+              <tr><td>Avg Degree</td><td>~14.7</td><td>Each concept ≈ 15 connections</td></tr>
+              <tr><td>Storage</td><td>NetworkX → PyTorch Geometric</td><td>GPU-accelerated training</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ─── 896D Feature Vector ─── -->
+        <div class="about-section">
+          <h3>🧠 Hybrid 896-Dimensional Feature Vector</h3>
+          <div class="about-callout">
+            <strong>Core Innovation:</strong> Every node is represented by a two-part 896D vector encoding both graph structure AND medical semantics.
+          </div>
+          <div class="about-two-col">
+            <div class="about-col-card">
+              <h4>Node2Vec — 128D (Topology)</h4>
+              <ul>
+                <li>Biased random walks (p=1.0, q=0.5)</li>
+                <li>200 walks × 20 steps per node</li>
+                <li>Word2Vec Skip-gram → 64D vectors</li>
+                <li>Zero-padded to 128D</li>
+                <li>Captures graph neighborhood structure</li>
+              </ul>
+            </div>
+            <div class="about-col-card">
+              <h4>SciBERT — 768D (Semantics)</h4>
+              <ul>
+                <li>Pre-trained on 1.14M scientific papers</li>
+                <li>12 Transformer layers, 110M parameters</li>
+                <li>Custom 31,116-token scientific vocabulary</li>
+                <li>[CLS] token extraction for sentence embedding</li>
+                <li>Medical meaning even for isolated nodes</li>
+              </ul>
+            </div>
+          </div>
+          <p class="about-note"><strong>Concatenation</strong> (not averaging) preserves both signals: <code>[128D Node2Vec | 768D SciBERT] = 896D</code>. The downstream GCN learns to weigh them differently per prediction.</p>
+        </div>
+
+        <!-- ─── GNN Architecture ─── -->
+        <div class="about-section">
+          <h3>🧬 GNN Architecture</h3>
+          <h4>GCN Encoder</h4>
+          <div class="about-code">
+INPUT: X ∈ ℝ^(659 × 896)  — Raw 896-D hybrid features
+
+Step 0: BatchNorm1d(896)        — Normalize input features
+Step 1: Linear(896 → 128) + ReLU — Dimensionality reduction
+Step 2: GCNConv(128 → 128)     — 1st graph convolution
+        BatchNorm + ReLU + Dropout(0.45)
+Step 3: GCNConv(128 → 64)      — 2nd graph convolution
+        BatchNorm
+
+OUTPUT: Z ∈ ℝ^(659 × 64)  — Learned node embeddings
+          </div>
+
+          <h4>Hybrid Decoder</h4>
+          <div class="about-code">
+Branch 1 — Bilinear:  score = zᵤᵀ · W · zᵥ + b   (W ∈ ℝ^64×64)
+Branch 2 — MLP:       [zᵤ | zᵥ | zᵤ⊙zᵥ] → 192→32→1
+
+Final: P(link) = Sigmoid(score_bilinear + score_mlp)
+          </div>
+
+          <h4>Why 2 GCN Layers?</h4>
+          <table class="about-table">
+            <thead><tr><th>Layers</th><th>Reach</th><th>Risk</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Direct neighbors only</td><td>Too local</td></tr>
+              <tr><td><strong>2</strong></td><td><strong>2-hop neighborhood</strong></td><td><strong>Sweet spot ✓</strong></td></tr>
+              <tr><td>3+</td><td>Nearly entire graph</td><td>Over-smoothing</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Parameter Count</h4>
+          <table class="about-table">
+            <thead><tr><th>Component</th><th>Parameters</th></tr></thead>
+            <tbody>
+              <tr><td>Input BatchNorm</td><td>1,792</td></tr>
+              <tr><td>Linear Projection (896→128)</td><td>114,816</td></tr>
+              <tr><td>GCNConv Layer 1 (128→128)</td><td>16,512</td></tr>
+              <tr><td>GCNConv Layer 2 (128→64)</td><td>8,256</td></tr>
+              <tr><td>Bilinear Decoder</td><td>4,097</td></tr>
+              <tr><td>MLP Decoder</td><td>6,177</td></tr>
+              <tr><td><strong>Total</strong></td><td><strong>~152,034</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ─── Training Pipeline ─── -->
+        <div class="about-section">
+          <h3>🏋️ Training Pipeline</h3>
+          <div class="about-two-col">
+            <div class="about-col-card">
+              <h4>Data Splitting</h4>
+              <ul>
+                <li><strong>80%</strong> Training (~3,885 edges)</li>
+                <li><strong>10%</strong> Validation (~485 edges)</li>
+                <li><strong>10%</strong> Test (~486 edges) — never seen</li>
+              </ul>
+            </div>
+            <div class="about-col-card">
+              <h4>Negative Sampling</h4>
+              <ul>
+                <li><strong>75%</strong> Random negatives</li>
+                <li><strong>25%</strong> Hard negatives (2-hop pairs)</li>
+                <li>Label smoothing factor: 0.1</li>
+              </ul>
+            </div>
+          </div>
+          <table class="about-table">
+            <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Optimizer</td><td>Adam (LR=0.003, weight decay=5×10⁻⁴)</td></tr>
+              <tr><td>Scheduler</td><td>CosineAnnealingWarmRestarts (T₀=150)</td></tr>
+              <tr><td>Loss</td><td>BCEWithLogitsLoss + label smoothing</td></tr>
+              <tr><td>Gradient Clipping</td><td>max_norm = 1.0</td></tr>
+              <tr><td>Early Stopping</td><td>80 epochs patience on val AUC</td></tr>
+              <tr><td>Multi-Seed</td><td>3 seeds (42, 123, 999) — best kept</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ─── Explainability ─── -->
+        <div class="about-section">
+          <h3>🔬 Explainable AI — Gradient-Based GNN Attribution</h3>
+          <p>Every prediction is <strong>fully explainable</strong> using gradient-based attribution — the GNN equivalent of <strong>Grad-CAM</strong>. This is model-intrinsic (not approximate), computed in &lt;200ms, and decomposes into topology vs. semantics contributions.</p>
+          <div class="about-code">
+Step 1: Enable gradients on 896D input features
+Step 2: Forward pass through GCN Encoder → 64D embeddings
+Step 3: Compute link score via HybridDecoder
+Step 4: Backpropagate gradients to input features
+Step 5: importance[d] = |gradient[d]| × |feature[d]|
+Step 6: Split — dims 0-127 = topology, dims 128-895 = semantics
+          </div>
+          <h4>8-Panel Explanation Dashboard</h4>
+          <div class="about-stages">
+            <div class="about-stage-card"><div class="about-stage-num">1</div><strong>Confidence Gauge</strong><p>Calibrated score zones: Weak (50-60%), Moderate (60-70%), Strong (70-80%), Very Strong (80%+).</p></div>
+            <div class="about-stage-card"><div class="about-stage-num">2</div><strong>Feature Attribution</strong><p>Topology vs. Semantics percentage split via gradient backpropagation.</p></div>
+            <div class="about-stage-card"><div class="about-stage-num">3</div><strong>Top Feature Dims</strong><p>10 most activated dimensions in the 896D vector, color-coded by source.</p></div>
+            <div class="about-stage-card"><div class="about-stage-num">4</div><strong>Common Neighbors</strong><p>Bridge concepts connected to both nodes — structural evidence for the link.</p></div>
+            <div class="about-stage-card"><div class="about-stage-num">5</div><strong>Shortest Path</strong><p>How the literature already connects the two concepts indirectly.</p></div>
+            <div class="about-stage-card"><div class="about-stage-num">6</div><strong>Embedding Similarity</strong><p>Cosine similarity of the 64D GNN-learned representations.</p></div>
+            <div class="about-stage-card"><div class="about-stage-num">7</div><strong>Influential Neighbors</strong><p>Which existing neighbors "pull" the prediction toward a positive link.</p></div>
+            <div class="about-stage-card"><div class="about-stage-num">8</div><strong>Paper Evidence</strong><p>Actual research papers from SQLite that mention each concept — data provenance.</p></div>
+          </div>
+        </div>
+
+        <!-- ─── Results ─── -->
+        <div class="about-section">
+          <h3>📊 Results</h3>
+          <div class="about-result-banner">
+            <div class="about-result-big">97.22%</div>
+            <div class="about-result-label">Test ROC-AUC (held-out edges)</div>
+            <div class="about-result-desc">Given a real hidden connection and a fake one, the AI correctly identifies the real one ~97% of the time on edges it never trained on.</div>
+          </div>
+          <h4>Top 5 Discovered Research Gaps</h4>
+          <table class="about-table">
+            <thead><tr><th>#</th><th>Prediction</th><th>Confidence</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Mindfulness ↔ Mindfulness Teachers</td><td>91.9%</td></tr>
+              <tr><td>2</td><td>Antidepressants ↔ Treatment</td><td>85.9%</td></tr>
+              <tr><td>3</td><td>HADS-Anxiety Subscale ↔ Depression</td><td>85.6%</td></tr>
+              <tr><td>4</td><td>Late Adulthood ↔ Depression</td><td>85.6%</td></tr>
+              <tr><td>5</td><td>DBT ↔ Depression</td><td>84.5%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ─── Database Schema ─── -->
+        <div class="about-section">
+          <h3>🗄️ Database Architecture</h3>
+          <p>All data stored in <strong>SQLite</strong> — zero-configuration, portable, ACID-compliant.</p>
+          <div class="about-code">
+CREATE TABLE papers (
+  paper_id TEXT PRIMARY KEY, title TEXT, abstract TEXT,
+  year INTEGER, authors TEXT, venue TEXT, source TEXT
+);
+
+CREATE TABLE entities (
+  id INTEGER PRIMARY KEY, paper_id TEXT, entity TEXT,
+  type TEXT, source TEXT, category TEXT,
+  UNIQUE(paper_id, entity, type)
+);
+
+CREATE TABLE relations (
+  id INTEGER PRIMARY KEY, paper_id TEXT, head TEXT,
+  relation TEXT, tail TEXT,
+  UNIQUE(paper_id, head, relation, tail)
+);
+          </div>
+        </div>
+
+        <!-- ─── API Endpoints ─── -->
+        <div class="about-section">
+          <h3>🌐 REST API Endpoints</h3>
+          <table class="about-table">
+            <thead><tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>/api/health</td><td>GET</td><td>Server status &amp; model loaded</td></tr>
+              <tr><td>/api/metrics</td><td>GET</td><td>ROC-AUC, graph stats, architecture</td></tr>
+              <tr><td>/api/predictions</td><td>GET</td><td>Top-K globally predicted research gaps</td></tr>
+              <tr><td>/api/search</td><td>POST</td><td>Search by concept, return scored gaps</td></tr>
+              <tr><td>/api/graph_data</td><td>GET</td><td>Full 3D graph layout for Plotly</td></tr>
+              <tr><td>/api/explain</td><td>POST</td><td>8-panel XAI explanation for a prediction</td></tr>
+              <tr><td>/api/node_profile</td><td>GET</td><td>Node category, degree, neighbors</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ─── Tech Stack ─── -->
+        <div class="about-section">
+          <h3>🎓 Tech Stack</h3>
+          <div class="about-two-col three-col">
+            <div class="about-col-card">
+              <h4>AI / ML</h4>
+              <ul>
+                <li>PyTorch 2.0+</li>
+                <li>PyTorch Geometric</li>
+                <li>SciBERT (HuggingFace)</li>
+                <li>SentenceTransformers</li>
+                <li>Node2Vec</li>
+                <li>NetworkX</li>
+                <li>scikit-learn</li>
+                <li>XGBoost</li>
+              </ul>
+            </div>
+            <div class="about-col-card">
+              <h4>NLP</h4>
+              <ul>
+                <li>spaCy</li>
+                <li>scispaCy</li>
+                <li>en_core_sci_sm</li>
+                <li>en_ner_bc5cdr_md</li>
+                <li>en_core_web_sm</li>
+                <li>negspacy (optional)</li>
+              </ul>
+            </div>
+            <div class="about-col-card">
+              <h4>Data &amp; Web</h4>
+              <ul>
+                <li>SQLite</li>
+                <li>Flask + Flask-CORS</li>
+                <li>Vanilla HTML/CSS/JS</li>
+                <li>Plotly.js (WebGL)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── References ─── -->
+        <div class="about-section">
+          <h3>📚 References</h3>
+          <div class="about-refs">
+            <div class="about-ref">Kipf &amp; Welling, <em>"Semi-Supervised Classification with Graph Convolutional Networks"</em>, ICLR 2017</div>
+            <div class="about-ref">Grover &amp; Leskovec, <em>"node2vec: Scalable Feature Learning for Networks"</em>, KDD 2016</div>
+            <div class="about-ref">Beltagy et al., <em>"SciBERT: A Pretrained Language Model for Scientific Text"</em>, EMNLP 2019</div>
+            <div class="about-ref">Selvaraju et al., <em>"Grad-CAM: Visual Explanations from Deep Networks"</em>, ICCV 2017</div>
+            <div class="about-ref">Ying et al., <em>"GNNExplainer: Generating Explanations for Graph Neural Networks"</em>, NeurIPS 2019</div>
+            <div class="about-ref">Pope et al., <em>"Explainability Methods for Graph Convolutional Neural Networks"</em>, CVPR 2019</div>
+            <div class="about-ref">Liben-Nowell &amp; Kleinberg, <em>"The Link Prediction Problem for Social Networks"</em>, 2003</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════ EXPLAIN MODAL ═══════════ -->
+  <div class="explain-overlay" id="explain-overlay" onclick="closeExplainModal()"></div>
+  <div class="explain-modal" id="explain-modal">
+    <div class="explain-header">
+      <div class="explain-title-row">
+        <span class="explain-icon">🔬</span>
+        <h2 id="explain-title">Why This Prediction?</h2>
+      </div>
+      <button class="explain-close" onclick="closeExplainModal()">✕</button>
+    </div>
+    <div class="explain-body" id="explain-body">
+      <div class="loading-state" style="position:static;padding:60px 0;background:none">
+        <div class="spinner"></div>
+        <p>Running GNNExplainer analysis…</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

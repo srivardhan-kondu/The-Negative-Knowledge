@@ -15,6 +15,7 @@ data/
 *.pt
 *.wv
 *.html
+!frontend/index.html
 
 # IDE configuration
 .vscode/

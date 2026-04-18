@@ -1,5 +1,5 @@
 /**
- * MindGap Frontend — app.js
+ * Negative Knowledge Frontend — app.js
  * Fetches data from the Flask REST API and renders the UI.
  * API base: same origin (Flask serves both API and static frontend)
  */
